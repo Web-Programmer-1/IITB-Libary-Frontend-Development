@@ -15,6 +15,7 @@ import {
   Library,
   Grid3X3,
   RefreshCw,
+  CreditCard,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import ThemeSwitcher from '@/components/ui/ThemeSwitcher';
@@ -29,6 +30,7 @@ const authLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/my-dashboard', label: 'My Space', icon: User },
   { href: '/circulation', label: 'Circulation', icon: RefreshCw },
+  { href: '/payments', label: 'Payments', icon: CreditCard },
 ];
 
 export default function Navbar() {
@@ -45,8 +47,8 @@ export default function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="relative overflow-hidden flex h-9 w-9 items-center justify-center rounded-lg bg-white transition-transform group-hover:scale-110 border border-[var(--card-border)] p-0.5">
+          <Link href="/" className="flex items-center gap-2 group flex-shrink-0">
+            <div className="relative overflow-hidden flex h-9 w-9 items-center justify-center rounded-lg bg-white transition-transform group-hover:scale-110 border border-[var(--card-border)] p-0.5 flex-shrink-0">
               <Image
                 src="/iitb.jpeg"
                 alt="IITB Logo"
@@ -56,7 +58,7 @@ export default function Navbar() {
                 className="object-contain rounded-md"
               />
             </div>
-            <span className="text-lg font-bold gradient-text">
+            <span className="text-lg font-bold gradient-text whitespace-nowrap">
               IITB Library
             </span>
           </Link>
@@ -69,7 +71,7 @@ export default function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                     isActive
                       ? 'bg-[var(--card-bg-hover)] text-[var(--text-primary)]'
                       : 'text-[var(--text-muted)] hover:bg-[var(--card-bg)] hover:text-[var(--text-primary)]'
@@ -157,7 +159,7 @@ export default function Navbar() {
                   key={link.href}
                   href={link.href}
                   onClick={() => setIsOpen(false)}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all whitespace-nowrap ${
                     isActive
                       ? 'bg-[var(--card-bg-hover)] text-[var(--text-primary)]'
                       : 'text-[var(--text-muted)] hover:bg-[var(--card-bg)] hover:text-[var(--text-primary)]'

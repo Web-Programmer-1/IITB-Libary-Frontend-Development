@@ -15,6 +15,8 @@ export const ENDPOINTS = {
     DETAIL: (id: string) => `/books/${id}`,
     CREATE: '/books',
     DELETE: (id: string) => `/books/${id}`,
+    AUTHORS: '/books/authors',
+    PUBLISHERS: '/books/publishers',
   },
 
   CATEGORIES: {
@@ -58,5 +60,11 @@ export const ENDPOINTS = {
     PROFILE_IMAGE: '/uploads/profile-image',
     BOOK_IMAGE: '/uploads/book-image',
     CATEGORY_IMAGE: '/uploads/category-image',
+  },
+
+  PAYMENT: {
+    INIT: (fineId: string) => `/payment/init/${fineId}`,
+    INIT_BOOK: (bookId: string) => `/payment/init-book/${bookId}`,
+    HISTORY: '/payment/history',
   },
 } as const;

@@ -11,6 +11,7 @@ import type {
   IssueReturn,
   MyDashboardResponse,
   PaginationParams,
+  Payment,
   Review,
   SafeUser,
   SharedDashboardResponse,
@@ -49,6 +50,26 @@ export const useBookDetail = (id: string) =>
       return data;
     },
     enabled: !!id,
+  });
+
+export const useAuthors = () =>
+  useQuery<string[]>({
+    queryKey: ['authors'],
+    queryFn: async () => {
+      const { data } = await api.get(ENDPOINTS.BOOKS.AUTHORS);
+      return data;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+export const usePublishers = () =>
+  useQuery<string[]>({
+    queryKey: ['publishers'],
+    queryFn: async () => {
+      const { data } = await api.get(ENDPOINTS.BOOKS.PUBLISHERS);
+      return data;
+    },
+    staleTime: 1000 * 60 * 5,
   });
 
 // ── Categories ──
@@ -164,4 +185,15 @@ export const useUserDetail = (id: string) =>
       return data;
     },
     enabled: !!id,
+  });
+
+// ── Payments ──
+
+export const usePaymentHistory = () =>
+  useQuery<Payment[]>({
+    queryKey: queryKeys.payments.history,
+    queryFn: async () => {
+      const { data } = await api.get(ENDPOINTS.PAYMENT.HISTORY);
+      return data;
+    },
   });

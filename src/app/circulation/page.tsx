@@ -53,10 +53,7 @@ export default function CirculationPage() {
             </button>
           ))}
         </div>
-
-        <TriggerOverdueButton />
       </div>
-
       {activeTab === 'my-issues' && <MyIssuesTab />}
       {activeTab === 'issue' && <IssueBookTab onSuccess={() => setActiveTab('history')} />}
       {activeTab === 'history' && <HistoryTab />}
@@ -64,62 +61,6 @@ export default function CirculationPage() {
   );
 }
 
-function TriggerOverdueButton() {
-  const queryClient = useQueryClient();
-  const [isTriggering, setIsTriggering] = useState(false);
-
-  const handleTrigger = async () => {
-    setIsTriggering(true);
-    try {
-      const { data } = await api.post<TriggerOverdueResponse>(
-        ENDPOINTS.CIRCULATION.TRIGGER_OVERDUE,
-        undefined,
-        {
-          params: { forceEmail: true },
-        },
-      );
-
-      if (data.checked === 0) {
-        toast(
-          data.nextDueDate
-            ? `No overdue issue yet. Next due date: ${data.nextDueDate}.`
-            : 'No active issue found to process.',
-          {
-            icon: 'ℹ️',
-          },
-        );
-      } else if (data.emailFailures > 0) {
-        toast.error(data.message);
-      } else {
-        toast.success(
-          `Updated ${data.processed} overdue fine(s), sent ${data.emailsSent} email(s).`,
-        );
-      }
-
-      queryClient.invalidateQueries({ queryKey: queryKeys.circulation.myIssues });
-      queryClient.invalidateQueries({ queryKey: queryKeys.circulation.history });
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.shared });
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.mine });
-      queryClient.invalidateQueries({ queryKey: queryKeys.auth.me });
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to trigger overdue checks');
-    } finally {
-      setIsTriggering(false);
-    }
-  };
-
-  return (
-    <Button
-      size="sm"
-      variant="secondary"
-      onClick={handleTrigger}
-      isLoading={isTriggering}
-      className="text-xs border border-red-500/30 hover:border-red-500/60 bg-red-500/10 hover:bg-red-500/20 text-red-400"
-    >
-      Trigger Overdue Checks (Dev)
-    </Button>
-  );
-}
 
 function MyIssuesTab() {
   const { data: issues, isLoading } = useMyIssues();
@@ -183,23 +124,31 @@ function MyIssuesTab() {
                   <p className="font-medium text-white">
                     {issue.book?.title ?? 'Unknown'}
                   </p>
-                  <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500">
                     <span className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
                       Due: {new Date(issue.dueDate).toLocaleDateString()}
                     </span>
                     {isOverdue && <Badge variant="danger">Overdue</Badge>}
-                    {overdueDays > 0 && (
-                      <span className="text-amber-300">
-                        {overdueDays} day(s) late
-                      </span>
-                    )}
-                    {displayFine > 0 && (
-                      <span className="text-red-400 font-semibold flex items-center gap-1">
-                        Fine: ৳{displayFine} (৳{OVERDUE_FINE_PER_DAY}/day)
-                      </span>
-                    )}
                   </div>
+                  {displayFine > 0 && (
+                    <div className="mt-3 flex items-center gap-2 rounded-xl bg-red-500/5 border border-red-500/10 p-2.5 w-fit">
+                      <div className="flex flex-col px-2 text-center border-r border-white/10 pr-3">
+                        <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Late Days</span>
+                        <span className="text-sm font-semibold text-white mt-0.5">{overdueDays} day(s)</span>
+                      </div>
+                      <span className="text-slate-500 text-xs px-1">×</span>
+                      <div className="flex flex-col px-2 text-center border-r border-white/10 pr-3">
+                        <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Rate</span>
+                        <span className="text-sm font-semibold text-white mt-0.5">৳{OVERDUE_FINE_PER_DAY}/day</span>
+                      </div>
+                      <span className="text-slate-500 text-xs px-1">=</span>
+                      <div className="flex flex-col px-2 text-center">
+                        <span className="text-red-400 text-[10px] uppercase font-bold tracking-wider">Total Fine</span>
+                        <span className="text-sm font-bold text-red-400 mt-0.5">৳{displayFine}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <Button

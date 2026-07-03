@@ -15,14 +15,16 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Skeleton from '@/components/ui/Skeleton';
 import StarRating from '@/components/ui/StarRating';
-import { useMyDashboard } from '@/apis/queries';
-import { usePayFine, useReturnBook } from '@/apis/mutations';
+import { useMyDashboard, usePaymentHistory } from '@/apis/queries';
+import { useInitiatePayment, useReturnBook } from '@/apis/mutations';
 import { getEstimatedFine, getOverdueDays, OVERDUE_FINE_PER_DAY } from '@/lib/fines';
+import type { Payment } from '@/types';
 
 export default function MyDashboardPage() {
   const { data, isLoading } = useMyDashboard();
+  const { data: paymentHistory, isLoading: isLoadingPayments } = usePaymentHistory();
   const returnMutation = useReturnBook();
-  const payFineMutation = usePayFine();
+  const initiatePaymentMutation = useInitiatePayment();
 
   const handleReturn = (issueId: string) => {
     returnMutation.mutate(issueId, {
@@ -33,12 +35,14 @@ export default function MyDashboardPage() {
   };
 
   const handlePayFine = (fineId: string) => {
-    payFineMutation.mutate(fineId, {
+    initiatePaymentMutation.mutate(fineId, {
       onSuccess: (response) => {
-        toast.success(response.message);
+        toast.success('Redirecting to payment gateway...');
+        // Redirect to SSLCommerz payment page
+        window.location.href = response.paymentUrl;
       },
       onError: (error: any) =>
-        toast.error(error?.response?.data?.message || 'Fine payment failed'),
+        toast.error(error?.response?.data?.message || 'Payment initiation failed'),
     });
   };
 
@@ -188,7 +192,7 @@ export default function MyDashboardPage() {
                         <p className="font-medium text-white">
                           {issue.book?.title ?? 'Unknown Book'}
                         </p>
-                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                           <span>
                             Due:{' '}
                             {new Date(issue.dueDate).toLocaleDateString()}
@@ -196,17 +200,25 @@ export default function MyDashboardPage() {
                           {isOverdue && (
                             <Badge variant="danger">Overdue</Badge>
                           )}
-                          {overdueDays > 0 && (
-                            <span className="text-amber-300">
-                              {overdueDays} day(s) late
-                            </span>
-                          )}
-                          {displayFine > 0 && (
-                            <span className="font-semibold text-red-400">
-                              Fine: ৳{displayFine} (৳{OVERDUE_FINE_PER_DAY}/day)
-                            </span>
-                          )}
                         </div>
+                        {displayFine > 0 && (
+                          <div className="mt-3 flex items-center gap-2 rounded-xl bg-red-500/5 border border-red-500/10 p-2.5 w-fit">
+                            <div className="flex flex-col px-2 text-center border-r border-white/10 pr-3">
+                              <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Late Days</span>
+                              <span className="text-sm font-semibold text-white mt-0.5">{overdueDays} day(s)</span>
+                            </div>
+                            <span className="text-slate-500 text-xs px-1">×</span>
+                            <div className="flex flex-col px-2 text-center border-r border-white/10 pr-3">
+                              <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Rate</span>
+                              <span className="text-sm font-semibold text-white mt-0.5">৳{OVERDUE_FINE_PER_DAY}/day</span>
+                            </div>
+                            <span className="text-slate-500 text-xs px-1">=</span>
+                            <div className="flex flex-col px-2 text-center">
+                              <span className="text-red-400 text-[10px] uppercase font-bold tracking-wider">Total Fine</span>
+                              <span className="text-sm font-bold text-red-400 mt-0.5">৳{displayFine}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <Button
@@ -262,7 +274,7 @@ export default function MyDashboardPage() {
 
       {/* Pending Fines */}
       {myFines.length > 0 && (
-        <div className="animate-fade-in-up">
+        <div className="mb-8 animate-fade-in-up">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
             <AlertCircle className="h-5 w-5 text-red-400" />
             Pending Fines
@@ -292,7 +304,7 @@ export default function MyDashboardPage() {
                     <Button
                       size="sm"
                       onClick={() => handlePayFine(fine.id)}
-                      isLoading={payFineMutation.isPending}
+                      isLoading={initiatePaymentMutation.isPending}
                     >
                       Pay Now
                     </Button>
@@ -303,6 +315,182 @@ export default function MyDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Payment History */}
+      <PaymentHistorySection
+        payments={paymentHistory ?? []}
+        isLoading={isLoadingPayments}
+      />
+    </div>
+  );
+}
+
+function PaymentHistorySection({
+  payments,
+  isLoading,
+}: {
+  payments: Payment[];
+  isLoading: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <div className="animate-fade-in-up">
+        <Skeleton className="mb-4 h-6 w-48" />
+        <Skeleton className="h-40 rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (payments.length === 0) return null;
+
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case 'SUCCESS':
+        return { variant: 'success' as const, label: 'Paid ✅', color: 'text-emerald-400' };
+      case 'FAILED':
+        return { variant: 'danger' as const, label: 'Failed ❌', color: 'text-red-400' };
+      case 'CANCELLED':
+        return { variant: 'warning' as const, label: 'Cancelled', color: 'text-amber-400' };
+      default:
+        return { variant: 'warning' as const, label: 'Pending ⏳', color: 'text-amber-400' };
+    }
+  };
+
+  const renderPaymentMethod = (cardType: string | null) => {
+    if (!cardType) return <span className="text-slate-500">—</span>;
+
+    const typeLower = cardType.toLowerCase();
+
+    if (typeLower.includes('bkash')) {
+      return (
+        <div className="flex items-center gap-2">
+          <div className="flex h-5 w-10 shrink-0 items-center justify-center rounded bg-white p-0.5 shadow-sm">
+            <img
+              src="https://download.logo.wine/logo/BKash/BKash-Logo.wine.png"
+              alt="bKash"
+              className="h-full w-full object-contain"
+            />
+          </div>
+          <span className="text-xs font-medium text-slate-300">bKash</span>
+        </div>
+      );
+    }
+
+    if (typeLower.includes('nagad')) {
+      return (
+        <div className="flex items-center gap-2">
+          <div className="flex h-5 w-10 shrink-0 items-center justify-center rounded bg-white p-0.5 shadow-sm">
+            <img
+              src="https://download.logo.wine/logo/Nagad/Nagad-Logo.wine.png"
+              alt="Nagad"
+              className="h-full w-full object-contain"
+            />
+          </div>
+          <span className="text-xs font-medium text-slate-300">Nagad</span>
+        </div>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center rounded bg-white/5 px-2 py-0.5 text-xs font-medium text-slate-300 border border-white/10">
+        {cardType}
+      </span>
+    );
+  };
+
+  return (
+    <div className="animate-fade-in-up">
+      <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
+        <DollarSign className="h-5 w-5 text-emerald-400" />
+        Payment History
+      </h2>
+      <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px]">
+            <thead>
+              <tr className="border-b border-white/10">
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                  Book
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                  Amount
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                  Payment Method
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                  Date
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                  Transaction ID
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {payments.map((payment) => {
+                const statusConfig = getStatusConfig(payment.status);
+                return (
+                  <tr
+                    key={payment.id}
+                    className="transition-colors hover:bg-white/5"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-8 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-slate-900/80">
+                          {payment.fine?.issueReturn?.book?.bookImage &&
+                          payment.fine.issueReturn.book.bookImage !== 'https://example.com/book.jpg' ? (
+                            <img
+                              src={payment.fine.issueReturn.book.bookImage}
+                              alt={payment.fine.issueReturn.book.title}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center">
+                              <BookOpen className="h-3 w-3 text-slate-600" />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-white">
+                            {payment.fine?.issueReturn?.book?.title ?? 'Unknown Book'}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {payment.fine?.issueReturn?.book?.author ?? ''}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm font-semibold text-white">
+                        ৳{String(payment.amount)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={statusConfig.variant}>
+                        {statusConfig.label}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-400">
+                      {renderPaymentMethod(payment.card_type)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-500">
+                      {new Date(payment.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="font-mono text-xs text-slate-600">
+                        {payment.tran_id.slice(0, 20)}…
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

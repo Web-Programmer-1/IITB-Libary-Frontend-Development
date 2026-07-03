@@ -6,12 +6,13 @@ import { useState } from 'react';
 interface StarRatingProps {
   rating: number;
   maxRating?: number;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   interactive?: boolean;
   onChange?: (rating: number) => void;
 }
 
 const sizeMap = {
+  xs: 'h-3 w-3',
   sm: 'h-3.5 w-3.5',
   md: 'h-4.5 w-4.5',
   lg: 'h-5.5 w-5.5',

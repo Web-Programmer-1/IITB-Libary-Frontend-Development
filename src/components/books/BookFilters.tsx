@@ -12,7 +12,7 @@ interface BookFiltersProps {
 export default function BookFilters({ filters, onChange }: BookFiltersProps) {
   const { data: categories } = useCategories({ limit: 50 });
 
-  const updateFilter = (key: keyof BookQueryParams, value: string) => {
+  const updateFilter = (key: keyof BookQueryParams, value: any) => {
     onChange({ ...filters, [key]: value || undefined, page: 1 });
   };
 
@@ -21,7 +21,7 @@ export default function BookFilters({ filters, onChange }: BookFiltersProps) {
   };
 
   const hasActiveFilters =
-    filters.search || filters.categoryId || filters.language || filters.sortBy;
+    filters.search || filters.categoryId || filters.minRating || filters.sortBy;
 
   return (
     <div className="space-y-4">
@@ -58,16 +58,18 @@ export default function BookFilters({ filters, onChange }: BookFiltersProps) {
           ))}
         </select>
 
-        {/* Language */}
+        {/* Rating */}
         <select
-          value={filters.language || ''}
-          onChange={(e) => updateFilter('language', e.target.value)}
+          value={filters.minRating || ''}
+          onChange={(e) => updateFilter('minRating', e.target.value ? Number(e.target.value) : undefined)}
           className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white backdrop-blur-xl transition-all focus:border-blue-500/50 focus:outline-none [&>option]:bg-slate-900"
         >
-          <option value="">All Languages</option>
-          <option value="বাংলা">বাংলা</option>
-          <option value="English">English</option>
-          <option value="Hindi">Hindi</option>
+          <option value="">All Ratings</option>
+          <option value="5">5 Stars</option>
+          <option value="4">4 Stars & Up</option>
+          <option value="3">3 Stars & Up</option>
+          <option value="2">2 Stars & Up</option>
+          <option value="1">1 Star & Up</option>
         </select>
 
         {/* Sort */}

@@ -22,6 +22,10 @@ import ReviewCard from '@/components/reviews/ReviewCard';
 import ReviewForm from '@/components/reviews/ReviewForm';
 import Skeleton from '@/components/ui/Skeleton';
 
+import { useRouter } from 'next/navigation';
+import { useInitiateBookPayment } from '@/apis/mutations';
+import { toast } from 'sonner';
+
 export default function BookDetailPage({
   params,
 }: {
@@ -31,6 +35,37 @@ export default function BookDetailPage({
   const { data: book, isLoading } = useBookDetail(id);
   const { data: reviews, isLoading: reviewsLoading } = useBookReviews(id);
   const { isAuthenticated } = useAuth();
+  const router = useRouter();
+  const initiateBookPaymentMutation = useInitiateBookPayment();
+
+  const isAvailable = book ? book.availableCopies > 0 : false;
+
+  const handleBuyNow = async () => {
+    if (!isAuthenticated) {
+      toast.error('Please login to buy books');
+      router.push(`/login?redirect=/books/${id}`);
+      return;
+    }
+
+    if (!isAvailable) {
+      toast.error('This book is currently out of stock');
+      return;
+    }
+
+    initiateBookPaymentMutation.mutate(id, {
+      onSuccess: (data) => {
+        if (data.paymentUrl) {
+          toast.success('Redirecting to payment gateway...');
+          window.location.href = data.paymentUrl;
+        } else {
+          toast.error('Failed to get payment gateway URL');
+        }
+      },
+      onError: (err: any) => {
+        toast.error(err?.response?.data?.message || err?.message || 'Payment initiation failed');
+      },
+    });
+  };
 
   if (isLoading) {
     return (
@@ -65,8 +100,6 @@ export default function BookDetailPage({
     book.reviews && book.reviews.length > 0
       ? book.reviews.reduce((sum, r) => sum + r.rating, 0) / book.reviews.length
       : 0;
-
-  const isAvailable = book.availableCopies > 0;
 
   const details = [
     { icon: Hash, label: 'ISBN', value: book.isbn },
@@ -149,6 +182,44 @@ export default function BookDetailPage({
               </div>
             ))}
           </div>
+
+          {/* Price & Buy Now Section */}
+          {(() => {
+            const originalPrice = book.price ? Number(book.price) : 350;
+            const discountPercent = book.discount || 0;
+            const currentPrice = discountPercent > 0 ? Math.round(originalPrice * (1 - discountPercent / 100)) : originalPrice;
+
+            return (
+              <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
+                <div className="flex items-baseline gap-3">
+                  <span className="text-3xl font-extrabold text-emerald-400">
+                    ৳{currentPrice}
+                  </span>
+                  {discountPercent > 0 && (
+                    <>
+                      <span className="text-lg text-slate-500 line-through">
+                        ৳{originalPrice}
+                      </span>
+                      <span className="rounded-lg bg-red-500/20 px-2 py-1 text-xs font-bold text-red-400">
+                        {discountPercent}% OFF
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    onClick={handleBuyNow}
+                    isLoading={initiateBookPaymentMutation.isPending}
+                    disabled={!isAvailable}
+                    className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-xl shadow-emerald-950/20 text-sm font-bold rounded-xl active:scale-[0.98]"
+                  >
+                    {isAvailable ? 'Buy Now' : 'Out of Stock'}
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 

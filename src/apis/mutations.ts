@@ -17,7 +17,7 @@ import type {
   CreateReviewPayload,
   IssueBookPayload,
   UpdateIssueDueDatePayload,
-  PayFineResponse,
+  InitPaymentResponse,
   Book,
   Category,
   IssueReturn,
@@ -212,21 +212,20 @@ export const useUpdateIssueDueDate = () => {
   });
 };
 
-export const usePayFine = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation<PayFineResponse, Error, string>({
+export const useInitiatePayment = () => {
+  return useMutation<InitPaymentResponse, Error, string>({
     mutationFn: async (fineId) => {
-      const { data } = await api.post(ENDPOINTS.DASHBOARD.PAY_FINE(fineId));
+      const { data } = await api.post(ENDPOINTS.PAYMENT.INIT(fineId));
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.mine });
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.shared });
-      queryClient.invalidateQueries({ queryKey: queryKeys.circulation.myIssues });
-      queryClient.invalidateQueries({ queryKey: queryKeys.circulation.history });
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.auth.me });
+  });
+};
+
+export const useInitiateBookPayment = () => {
+  return useMutation<InitPaymentResponse, Error, string>({
+    mutationFn: async (bookId) => {
+      const { data } = await api.post(ENDPOINTS.PAYMENT.INIT_BOOK(bookId));
+      return data;
     },
   });
 };

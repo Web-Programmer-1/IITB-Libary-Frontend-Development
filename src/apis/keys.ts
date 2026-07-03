@@ -53,4 +53,9 @@ export const queryKeys = {
     all: ['users'] as const,
     detail: (id: string) => ['users', id] as const,
   },
+
+  // ── Payments ──
+  payments: {
+    history: ['payments', 'history'] as const,
+  },
 } as const;

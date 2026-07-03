@@ -48,6 +48,8 @@ export interface Book {
   publisher: string;
   pages: number;
   language: string;
+  price?: number | string;
+  discount?: number;
   createdAt: string;
   updatedAt: string;
   category?: Category;
@@ -164,7 +166,14 @@ export interface BookQueryParams {
   search?: string;
   categoryId?: string;
   language?: string;
-  sortBy?: 'title_asc' | 'rating_desc' | 'year_desc';
+  author?: string;
+  publisher?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  minDiscount?: number;
+  minRating?: number;
+  inStock?: boolean | string;
+  sortBy?: 'title_asc' | 'rating_desc' | 'year_desc' | 'price_asc' | 'price_desc' | 'discount_desc' | 'best_seller';
 }
 
 export interface PaginationParams {
@@ -208,8 +217,6 @@ export interface TriggerOverdueResponse {
   message: string;
   checked: number;
   processed: number;
-  emailsSent: number;
-  emailFailures: number;
   activeIssueCount?: number;
   nextDueDate?: string | null;
 }
@@ -229,4 +236,32 @@ export interface UploadResponse {
   size: number;
   allowedMimeTypes: string[];
   maxFileSizeBytes: number;
+}
+
+export interface Payment {
+  id: string;
+  tran_id: string;
+  fineId?: string | null;
+  bookId?: string | null;
+  userId: string;
+  amount: number | string;
+  status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
+  val_id: string | null;
+  card_type: string | null;
+  bank_tran_id: string | null;
+  currency: string;
+  createdAt: string;
+  updatedAt: string;
+  fine?: Fine & {
+    issueReturn?: Pick<IssueReturn, 'id' | 'dueDate' | 'returnDate'> & {
+      book?: Pick<Book, 'id' | 'title' | 'bookImage' | 'author'>;
+    };
+  };
+  book?: Book | null;
+}
+
+export interface InitPaymentResponse {
+  paymentUrl: string;
+  tran_id: string;
+  paymentId: string;
 }

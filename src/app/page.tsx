@@ -11,13 +11,17 @@ import {
   TrendingUp,
   Library,
   RefreshCw,
+  Search,
+  SlidersHorizontal,
+  ChevronDown,
+  X,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import BookCard from '@/components/books/BookCard';
 import CategoryCard from '@/components/categories/CategoryCard';
 import StatCard from '@/components/ui/StatCard';
 import { BookCardSkeleton } from '@/components/ui/Skeleton';
-import { useBooks, useCategories, useTopBooks } from '@/apis/queries';
+import { useBooks, useCategories, useTopBooks, usePublishers } from '@/apis/queries';
 import { useAuth } from '@/hooks/useAuth';
 
 const SLIDES = [
@@ -315,56 +319,20 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Featured Books ── */}
-      <section className="px-4 py-16">
+      {/* ── Library Catalog & Filters (Rokomari Style) ── */}
+      <section className="px-4 py-16 bg-[var(--bg-secondary)]/30 border-y border-white/5">
         <div className="mx-auto max-w-7xl">
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-[var(--text-primary)]">Latest Books</h2>
-              <p className="mt-1 text-sm text-[var(--text-muted)]">
-                Recently added to the collection
-              </p>
-            </div>
-            <Link href="/books">
-              <Button variant="ghost" size="sm">
-                View All
-                <ArrowRight className="ml-1 h-3.5 w-3.5" />
-              </Button>
-            </Link>
+          {/* Section Header */}
+          <div className="mb-10 text-center animate-fade-in-up">
+            <h2 className="text-3xl font-extrabold text-white">IITB Library Catalog</h2>
+            <p className="mt-2 text-sm text-[var(--text-muted)] max-w-xl mx-auto">
+              Browse books, filter by your favorite author, publisher, language, or category with real-time updates.
+            </p>
           </div>
 
-          <div className="stagger-children grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {booksLoading
-              ? Array.from({ length: 5 }, (_, i) => <BookCardSkeleton key={i} />)
-              : featuredBooks?.map((book) => (
-                  <BookCard key={book.id} book={book} />
-                ))}
-          </div>
+          <CatalogContainer categories={categories ?? []} />
         </div>
       </section>
-
-      {/* ── Top Books ── */}
-      {topBooks && topBooks.length > 0 && (
-        <section className="px-4 py-16">
-          <div className="mx-auto max-w-7xl">
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
-                <TrendingUp className="h-6 w-6 text-[var(--accent-primary)]" />
-                Most Issued Books
-              </h2>
-              <p className="mt-1 text-sm text-[var(--text-muted)]">
-                Popular picks from our readers
-              </p>
-            </div>
-
-            <div className="stagger-children grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {topBooks.slice(0, 5).map((book) => (
-                <BookCard key={book.id} book={book} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* ── Categories ── */}
       <section className="px-4 py-16">
@@ -427,6 +395,281 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+    </div>
+  );
+}
+
+interface Category {
+  id: string;
+  name: string;
+}
+
+function CatalogContainer({ categories }: { categories: Category[] }) {
+  // Query Filters State
+  const [activeTab, setActiveTab] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<string>('best_seller');
+  const [inStockOnly, setInStockOnly] = useState(false);
+  const [selectedPublishers, setSelectedPublishers] = useState<string[]>([]);
+  const [selectedRating, setSelectedRating] = useState<number | null>(null);
+  
+  // Responsive sidebar toggles
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Author and publisher list filter options loaded dynamically
+  const { data: dbPublishers } = usePublishers();
+
+  const publisherOptions = dbPublishers || [];
+
+  // Helper toggle handlers
+  const handlePublisherToggle = (name: string) => {
+    setSelectedPublishers(prev =>
+      prev.includes(name) ? prev.filter(x => x !== name) : [...prev, name]
+    );
+  };
+
+  const handleRatingSelect = (stars: number) => {
+    setSelectedRating(prev => prev === stars ? null : stars);
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSortBy('best_seller');
+    setInStockOnly(false);
+    setSelectedPublishers([]);
+    setSelectedRating(null);
+  };
+
+  // Build query params
+  const queryParams = {
+    limit: 20,
+    search: searchQuery || undefined,
+    categoryId: activeTab === 'all' ? undefined : activeTab,
+    sortBy: sortBy as any,
+    inStock: inStockOnly ? 'true' : undefined,
+    publisher: selectedPublishers.length > 0 ? selectedPublishers.join(',') : undefined,
+    minRating: selectedRating || undefined,
+  };
+
+  const { data: books, isLoading: booksLoading } = useBooks(queryParams);
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-8">
+      {/* ── Mobile Filter Toggle ── */}
+      <div className="flex lg:hidden items-center justify-between gap-4 w-full">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="flex items-center gap-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--card-border)] px-4 py-2.5 text-sm font-semibold text-white shadow-lg"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Filter Books
+        </button>
+        <span className="text-xs text-[var(--text-muted)] font-medium">
+          Showing {books?.length || 0} product(s)
+        </span>
+      </div>
+
+      {/* ── Sidebar Filters (Rokomari Style) ── */}
+      <aside
+        className={`fixed inset-0 z-50 flex flex-col bg-[#0a0018]/95 p-6 backdrop-blur-xl lg:backdrop-blur-none transition-all duration-300 lg:static lg:z-0 lg:flex lg:w-64 lg:bg-transparent lg:p-0 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
+        <div className="flex items-center justify-between pb-4 border-b border-white/10 lg:hidden mb-6">
+          <h3 className="text-lg font-bold text-white">Filters</h3>
+          <button onClick={() => setSidebarOpen(false)} className="text-slate-400 hover:text-white">
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="space-y-6 overflow-y-auto pr-1">
+          {/* Search bar inside sidebar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search books, authors..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-10 pr-4 text-sm text-white placeholder-slate-500 transition-all focus:border-[var(--accent-primary)]/50 focus:outline-none"
+            />
+          </div>
+
+          {/* Stock criteria */}
+          <div className="pb-4 border-b border-white/5">
+            <label className="flex items-center gap-2.5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={inStockOnly}
+                onChange={(e) => setInStockOnly(e.target.checked)}
+                className="h-4 w-4 rounded border-white/10 bg-white/5 text-[var(--accent-primary)] focus:ring-0 focus:ring-offset-0 cursor-pointer"
+              />
+              <span className="text-sm font-semibold text-slate-200 group-hover:text-white transition-colors">
+                In Stock Only
+              </span>
+            </label>
+          </div>
+
+          {/* Sorting */}
+          <div className="pb-5 border-b border-white/5">
+            <h4 className="mb-3 text-xs font-bold text-slate-400 uppercase tracking-widest">Sort By</h4>
+            <div className="space-y-2.5">
+              {[
+                { value: 'best_seller', label: 'Best Seller' },
+                { value: 'year_desc', label: 'New Released' },
+                { value: 'price_asc', label: 'Price: Low to High' },
+                { value: 'price_desc', label: 'Price: High to Low' },
+                { value: 'discount_desc', label: 'Discount: High to Low' },
+              ].map((opt) => (
+                <label key={opt.value} className="flex items-center gap-2.5 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="sortBy"
+                    value={opt.value}
+                    checked={sortBy === opt.value}
+                    onChange={() => setSortBy(opt.value)}
+                    className="h-4 w-4 border-white/10 bg-white/5 text-[var(--accent-primary)] focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                  />
+                  <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
+                    {opt.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+
+
+          {/* Filter by Publishers */}
+          <div className="pb-5 border-b border-white/5">
+            <h4 className="mb-3 text-xs font-bold text-slate-400 uppercase tracking-widest">By Publishers</h4>
+            <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-thin">
+              {publisherOptions.map((pubName) => (
+                <label key={pubName} className="flex items-center gap-2.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={selectedPublishers.includes(pubName)}
+                    onChange={() => handlePublisherToggle(pubName)}
+                    className="h-4 w-4 rounded border-white/10 bg-white/5 text-[var(--accent-primary)] focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                  />
+                  <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
+                    {pubName}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Filter by Rating */}
+          <div className="pb-5 border-b border-white/5">
+            <h4 className="mb-3 text-xs font-bold text-slate-400 uppercase tracking-widest">Rating</h4>
+            <div className="space-y-1">
+              {[5, 4, 3, 2, 1].map((stars) => {
+                const isSelected = selectedRating === stars;
+                return (
+                  <button
+                    key={stars}
+                    onClick={() => handleRatingSelect(stars)}
+                    className={`flex items-center justify-between w-full p-2 rounded-xl transition-all duration-150 border text-left ${
+                      isSelected
+                        ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/30 text-white'
+                        : 'border-transparent text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-0.5">
+                        {Array.from({ length: 5 }, (_, i) => (
+                          <Star
+                            key={i}
+                            className={`h-3.5 w-3.5 ${
+                              i < stars ? 'fill-amber-400 text-amber-400' : 'fill-transparent text-slate-600'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-xs font-medium">
+                        {stars === 5 ? '5 Stars' : `& Up`}
+                      </span>
+                    </div>
+                    {isSelected && (
+                      <span className="text-[10px] uppercase font-bold text-[var(--accent-primary)] bg-[var(--accent-primary)]/20 px-1.5 py-0.5 rounded">
+                        Active
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Reset Filters button */}
+          <button
+            onClick={handleResetFilters}
+            className="w-full text-center py-2.5 rounded-xl border border-white/10 text-xs font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+          >
+            Reset All Filters
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Main content area with Category Tabs and Catalog Grid ── */}
+      <div className="flex-1 flex flex-col gap-6">
+        {/* Top category tabs system (horizontal scrollbar) */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none border-b border-white/5">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold whitespace-nowrap transition-colors ${
+              activeTab === 'all'
+                ? 'bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-white shadow-lg shadow-[var(--accent-primary)]/20'
+                : 'bg-white/5 border border-white/10 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            All Categories
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setActiveTab(cat.id)}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold whitespace-nowrap transition-colors ${
+                activeTab === cat.id
+                  ? 'bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-white shadow-lg shadow-[var(--accent-primary)]/20'
+                  : 'bg-white/5 border border-white/10 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {cat.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Books Catalog Grid */}
+        <div>
+          {booksLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 animate-pulse">
+              {Array.from({ length: 8 }, (_, i) => (
+                <div key={i} className="aspect-[3/4] bg-white/5 border border-white/10 rounded-2xl" />
+              ))}
+            </div>
+          ) : !books || books.length === 0 ? (
+            <div className="text-center py-20 bg-white/5 border border-white/10 rounded-3xl p-8 max-w-md mx-auto">
+              <BookOpen className="mx-auto h-12 w-12 text-slate-500 mb-3" />
+              <h3 className="text-lg font-bold text-white mb-1">No Books Found</h3>
+              <p className="text-sm text-slate-400 mb-4">We couldn't find any books matching your criteria. Try adjusting your filters.</p>
+              <button
+                onClick={handleResetFilters}
+                className="px-4 py-2 rounded-xl bg-white/10 text-xs font-bold text-white hover:bg-white/20 transition-all"
+              >
+                Clear Filters
+              </button>
+            </div>
+          ) : (
+            <div className="stagger-children grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {books.map((book) => (
+                <BookCard key={book.id} book={book} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
